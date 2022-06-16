@@ -85,6 +85,7 @@ apps:
   kafka-connect:
     command: bin/kafka-wrapper connect-distributed.sh $SNAP_DATA/config/connect-distributed.properties
     daemon: simple
+    after: [kafka]
     restart-condition: never
     plugs:
       - network-bind
