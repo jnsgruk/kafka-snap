@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
-export LOG_DIR=$SNAP_DATA/logs
-export JAVA_HOME=$SNAP/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$SNAP/opt/kafka/bin:$JAVA_HOME/bin:$PATH
+export LOG_DIR="${SNAP_DATA}/logs"
+export JAVA_HOME="${SNAP}/usr/lib/jvm/java-17-openjdk-amd64"
+export PATH="${SNAP}/opt/kafka/bin:${JAVA_HOME}/bin:${PATH}"
 
-export KAFKA_OPTS="-javaagent:$SNAP/opt/kafka/extra/jmx_prometheus_javaagent.jar=7071:$SNAP_DATA/config/jmx_prometheus.yaml"
+# Inject the JMX exporter if we're running Kafka itself
+if [[ "$1" == "kafka-run-class.sh" ]]; then
+    JMX_EXPORTER_PATH="${SNAP}/opt/kafka/extra/jmx_prometheus_javaagent.jar"
+    JMX_EXPORTER_CONF="${SNAP_DATA}/config/jmx_prometheus.yaml"
+    JMX_PORT="7071"
+
+    export KAFKA_OPTS="-javaagent:${JMX_EXPORTER_PATH}=${JMX_PORT}:${JMX_EXPORTER_CONF}"
+fi
 
 exec "$@"
