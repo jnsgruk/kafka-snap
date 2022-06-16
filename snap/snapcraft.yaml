@@ -91,10 +91,10 @@ apps:
       - network-bind
       - network
 
-  kafka-mirror-maker:
-    command: bin/kafka-wrapper connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
-    daemon: simple
-    restart-condition: never
-    plugs:
-      - network-bind
-      - network
+  # kafka-mirror-maker:
+  #   command: bin/kafka-wrapper connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
+  #   daemon: simple
+  #   restart-condition: never
+  #   plugs:
+  #     - network-bind
+  #     - network
