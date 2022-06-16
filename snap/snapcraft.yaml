@@ -1,5 +1,5 @@
 name: kafka
-version: "3.2.0"
+version: "3.0.0"
 summary: Apache kafka cluster in a snap
 description: |
   Provides the kafka queue system in a snap. Create kafka
@@ -14,9 +14,9 @@ compression: lzo
 parts:
   kafka:
     plugin: dump
-    source: https://dlcdn.apache.org/kafka/$SNAPCRAFT_PROJECT_VERSION/kafka_2.13-$SNAPCRAFT_PROJECT_VERSION.tgz
+    source: https://archive.apache.org/dist/kafka/$SNAPCRAFT_PROJECT_VERSION/kafka_2.12-$SNAPCRAFT_PROJECT_VERSION.tgz
     # Checksum can be found at the URL above with '.sha512' on the end
-    source-checksum: sha512/736a129823b058dc10788d0893bde47b6f39b9e4972f9eac2d5c9e85e51e477344c6f1e1ebd126ce34d5fd430eb07e55fdd60d60cb541f1d48655c0ebc0a4778
+    source-checksum: sha512/cb82e685a76fa6041dcb39a8519b4f3c1a16066e9d5d8eab11a825b517d91f690ed9af40492a11471265ae9c486017fd128492f867e3be63ec7770d44f7e54d2
     organize:
       bin: opt/kafka/bin
       config: opt/kafka/default-config
@@ -52,31 +52,26 @@ parts:
     plugin: nil
     after: [kafka]
     stage-packages:
-      - openjdk-11-jre-headless
+      - openjdk-17-jre-headless
 
   prometheus-exporter:
     plugin: nil
-    after: [kafka]
+    after: [kafka, java-runtime]
     build-packages:
       - wget
       - libpsl5
     override-build: |
       # Download the jmx_prometheus exporter
-      wget -qO jmx_prometheus_javaagent-0.15.0.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.15.0/jmx_prometheus_javaagent-0.15.0.jar
-      cp jmx_prometheus_javaagent-0.15.0.jar $SNAPCRAFT_PART_INSTALL/
-
-      # Grab an example config for the exporter
-      wget -qO jmx_prometheus.yaml https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-2_0_0.yml
-      cp jmx_prometheus.yaml $SNAPCRAFT_PART_INSTALL/
+      wget -qO jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.17.0/jmx_prometheus_javaagent-0.17.0.jar
+      cp jmx_prometheus_javaagent.jar $SNAPCRAFT_PART_INSTALL/
     organize:
-      jmx_prometheus_javaagent-0.15.0.jar: opt/kafka/extra/jmx_prometheus_javaagent-0.15.0.jar
-      jmx_prometheus.yaml: opt/kafka/default-config/jmx_prometheus.yaml
+      jmx_prometheus_javaagent.jar: opt/kafka/extra/jmx_prometheus_javaagent.jar
 
-  wrapper:
+  local-parts:
     plugin: dump
     source: snap/local
-    organize:
-      kafka-wrapper: bin/kafka-wrapper
+    source-type: local
+    after: [prometheus-exporter, java-runtime, kafka]
 
 apps:
   kafka:
@@ -88,7 +83,7 @@ apps:
       - network
 
   kafka-connect:
-    command: opt/kafka/bin/connect-distributed.sh $SNAP_DATA/config/connect-distributed.properties
+    command: bin/kafka-wrapper connect-distributed.sh $SNAP_DATA/config/connect-distributed.properties
     daemon: simple
     restart-condition: never
     plugs:
@@ -96,7 +91,7 @@ apps:
       - network
 
   kafka-mirror-maker:
-    command: opt/kafka/bin/connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
+    command: bin/kafka-wrapper connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
     daemon: simple
     restart-condition: never
     plugs:
