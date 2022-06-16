@@ -1,0 +1,13 @@
+name: Push (main)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "snap/**"
+      - ".github/workflows/**.yaml"
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yaml

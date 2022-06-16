@@ -1,0 +1,104 @@
+name: kafka
+version: "3.2.0"
+summary: Apache kafka cluster in a snap
+description: |
+  Provides the kafka queue system in a snap. Create kafka
+  cluster or standalone; or a cluster of Kafka Connect.
+
+confinement: strict
+grade: stable
+base: core20
+architectures: [amd64]
+compression: lzo
+
+parts:
+  kafka:
+    plugin: dump
+    source: https://dlcdn.apache.org/kafka/$SNAPCRAFT_PROJECT_VERSION/kafka_2.13-$SNAPCRAFT_PROJECT_VERSION.tgz
+    # Checksum can be found at the URL above with '.sha512' on the end
+    source-checksum: sha512/736a129823b058dc10788d0893bde47b6f39b9e4972f9eac2d5c9e85e51e477344c6f1e1ebd126ce34d5fd430eb07e55fdd60d60cb541f1d48655c0ebc0a4778
+    organize:
+      bin: opt/kafka/bin
+      config: opt/kafka/default-config
+      libs: opt/kafka/libs
+      licenses: opt/kafka/licenses
+      LICENSE: opt/kafka/LICENSE
+      NOTICE: opt/kafka/NOTICE
+    prime:
+      # Remove the following files that are unneeded
+      - -opt/kafka/bin/windows
+      - -opt/kafka/bin/zookeeper*
+      - -site-docs
+    override-prime: |
+      snapcraftctl prime
+
+      # The default scripts that ship with Kafka assume a directory
+      # layout which is less than idea for snaps. There are hard-coded
+      # paths that expect a 'config' dir adjacent to the 'bin' dir.
+      #
+      # Here we replace those paths so that configs can be kept in $SNAP_DATA
+      sed -i \
+        -e "s|\$base_dir/config|/var/snap/kafka/current/config|g" \
+        -e "s|\$base_dir/../config|/var/snap/kafka/current/config|g" \
+        ${SNAPCRAFT_PRIME}/opt/kafka/bin/*.sh
+
+      # The default 'server.properties' sets the logs dir for Kafka
+      # to /tmp/kafka-logs. We replace that default with $SNAP_DATA/logs
+      sed -i \
+        "s|/tmp/kafka-logs|/var/snap/kafka/current/logs|g" \
+        ${SNAPCRAFT_PRIME}/opt/kafka/default-config/server.properties
+
+  java-runtime:
+    plugin: nil
+    after: [kafka]
+    stage-packages:
+      - openjdk-11-jre-headless
+
+  prometheus-exporter:
+    plugin: nil
+    after: [kafka]
+    build-packages:
+      - wget
+      - libpsl5
+    override-build: |
+      # Download the jmx_prometheus exporter
+      wget -qO jmx_prometheus_javaagent-0.15.0.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.15.0/jmx_prometheus_javaagent-0.15.0.jar
+      cp jmx_prometheus_javaagent-0.15.0.jar $SNAPCRAFT_PART_INSTALL/
+
+      # Grab an example config for the exporter
+      wget -qO jmx_prometheus.yaml https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-2_0_0.yml
+      cp jmx_prometheus.yaml $SNAPCRAFT_PART_INSTALL/
+    organize:
+      jmx_prometheus_javaagent-0.15.0.jar: opt/kafka/extra/jmx_prometheus_javaagent-0.15.0.jar
+      jmx_prometheus.yaml: opt/kafka/default-config/jmx_prometheus.yaml
+
+  wrapper:
+    plugin: dump
+    source: snap/local
+    organize:
+      kafka-wrapper: bin/kafka-wrapper
+
+apps:
+  kafka:
+    command: bin/kafka-wrapper kafka-run-class.sh kafka.Kafka $SNAP_DATA/config/server.properties
+    daemon: simple
+    restart-condition: never
+    plugs:
+      - network-bind
+      - network
+
+  kafka-connect:
+    command: opt/kafka/bin/connect-distributed.sh $SNAP_DATA/config/connect-distributed.properties
+    daemon: simple
+    restart-condition: never
+    plugs:
+      - network-bind
+      - network
+
+  kafka-mirror-maker:
+    command: opt/kafka/bin/connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
+    daemon: simple
+    restart-condition: never
+    plugs:
+      - network-bind
+      - network
