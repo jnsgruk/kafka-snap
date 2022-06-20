@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 export LOG_DIR="${SNAP_DATA}/logs"
-export JAVA_HOME="${SNAP}/usr/lib/jvm/java-17-openjdk-amd64"
+export JAVA_HOME="${SNAP}/usr/lib/jvm/java-11-openjdk-amd64"
 export PATH="${SNAP}/opt/kafka/bin:${JAVA_HOME}/bin:${PATH}"
 
 # Inject the JMX exporter if we're running Kafka itself

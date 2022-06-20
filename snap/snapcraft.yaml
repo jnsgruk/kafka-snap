@@ -7,9 +7,17 @@ description: |
 
 confinement: strict
 grade: stable
-base: core20
+base: core18
 architectures: [amd64]
 compression: lzo
+
+plugs:
+  # Zookeeper tries to read mount info from its /proc/<pid>
+  # for mountinfo and coredump_filter
+  proc-folder:
+    interface: system-files
+    read:
+    - /proc
 
 parts:
   kafka:
@@ -27,7 +35,6 @@ parts:
     prime:
       # Remove the following files that are unneeded
       - -opt/kafka/bin/windows
-      - -opt/kafka/bin/zookeeper*
       - -site-docs
     override-prime: |
       snapcraftctl prime
@@ -52,7 +59,7 @@ parts:
     plugin: nil
     after: [kafka]
     stage-packages:
-      - openjdk-17-jre-headless
+      - openjdk-11-jre-headless
 
   prometheus-exporter:
     plugin: nil
@@ -74,27 +81,18 @@ parts:
     after: [prometheus-exporter, java-runtime, kafka]
 
 apps:
+  zookeeper:
+    command: bin/kafka-wrapper zookeeper-server-start.sh $SNAP_COMMON/zookeeper.properties
+    daemon: simple
+    plugs: 
+      - network
+      - network-bind
+      - proc-folder
+
   kafka:
-    command: bin/kafka-wrapper kafka-run-class.sh kafka.Kafka $SNAP_DATA/config/server.properties
+    command: bin/kafka-wrapper kafka-run-class.sh kafka.Kafka $SNAP_COMMON/server.properties
     daemon: simple
     restart-condition: never
     plugs:
       - network-bind
       - network
-
-  kafka-connect:
-    command: bin/kafka-wrapper connect-distributed.sh $SNAP_DATA/config/connect-distributed.properties
-    daemon: simple
-    after: [kafka]
-    restart-condition: never
-    plugs:
-      - network-bind
-      - network
-
-  # kafka-mirror-maker:
-  #   command: bin/kafka-wrapper connect-mirror-maker.sh $SNAP_DATA/config/connect-mirror-maker.properties
-  #   daemon: simple
-  #   restart-condition: never
-  #   plugs:
-  #     - network-bind
-  #     - network
